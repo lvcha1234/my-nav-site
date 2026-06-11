@@ -9,7 +9,7 @@ pages_build_output_dir = "./dist"
 
 [[kv_namespaces]]
 binding = "NAVI_DATA"
-id = "YOUR_KV_NAMESPACE_ID"
+id = "94ef08663abc4a8cb9f9bc77714ece05"
 
 # 环境变量（敏感信息请使用 wrangler secret 设置）
 # wrangler secret put JWT_SECRET
