@@ -39,33 +39,41 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return jsonResponse({ favicon: cached, cached: true });
   }
 
-  // 缓存未命中，请求 Google S2
-  try {
-    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-    const response = await fetch(faviconUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
+  // 缓存未命中，尝试多个图标服务
+  const faviconServices = [
+    `https://favicon.im/${domain}`,
+    `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+  ];
 
-    if (!response.ok) {
-      return errorResponse('获取图标失败', 502);
+  for (const faviconUrl of faviconServices) {
+    try {
+      const response = await fetch(faviconUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+
+      if (!response.ok) continue;
+
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength < 10) continue;
+
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (const byte of bytes) {
+        binary += String.fromCharCode(byte);
+      }
+      const base64 = btoa(binary);
+
+      const contentType = response.headers.get('Content-Type') || 'image/png';
+      const dataUri = `data:${contentType};base64,${base64}`;
+
+      // 存入 KV 缓存，TTL 30天
+      await env.NAVI_DATA.put(cacheKey, dataUri, { expirationTtl: 30 * 24 * 3600 });
+
+      return jsonResponse({ favicon: dataUri, cached: false });
+    } catch {
+      continue;
     }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte);
-    }
-    const base64 = btoa(binary);
-
-    const contentType = response.headers.get('Content-Type') || 'image/png';
-    const dataUri = `data:${contentType};base64,${base64}`;
-
-    // 存入 KV 缓存，TTL 30天
-    await env.NAVI_DATA.put(cacheKey, dataUri, { expirationTtl: 30 * 24 * 3600 });
-
-    return jsonResponse({ favicon: dataUri, cached: false });
-  } catch {
-    return errorResponse('获取图标失败', 502);
   }
+
+  return errorResponse('获取图标失败', 502);
 };

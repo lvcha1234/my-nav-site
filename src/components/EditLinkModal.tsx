@@ -35,16 +35,24 @@ export default function EditLinkModal({ link, onClose }: EditLinkModalProps) {
 
   // 输入 URL 后自动获取 Favicon
   const handleUrlBlur = async () => {
-    if (!url.trim() || favicon) return;
+    if (!url.trim()) return;
     try {
       setLoadingFavicon(true);
+      // 先尝试后端 API
       const res = await fetch(`/api/favicon?url=${encodeURIComponent(url)}`);
       if (res.ok) {
         const data = await res.text();
-        if (data) setFavicon(data);
+        if (data) { setFavicon(data); return; }
       }
     } catch {
-      // 本地开发 API 不可用时忽略
+      // API 不可用，使用前端 fallback
+    }
+    // 前端 fallback：使用图标服务
+    try {
+      const hostname = new URL(url).hostname;
+      setFavicon(`https://favicon.im/${hostname}`);
+    } catch {
+      // URL 格式无效
     } finally {
       setLoadingFavicon(false);
     }

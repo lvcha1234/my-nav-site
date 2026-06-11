@@ -9,14 +9,20 @@ interface SiteItemProps {
   link: NavLink;
 }
 
-function getFaviconSrc(link: NavLink): string | null {
+function getFaviconSrc(link: NavLink): string {
   if (link.favicon) {
     if (link.favicon.startsWith('data:') || link.favicon.startsWith('http')) {
       return link.favicon;
     }
-    return `https://www.google.com/s2/favicons?domain=${new URL(link.url).hostname}&sz=64`;
   }
-  return null;
+  // 无 favicon 时，使用图标服务获取
+  try {
+    const hostname = new URL(link.url).hostname;
+    // 优先使用国内可用的图标服务
+    return `https://favicon.im/${hostname}`;
+  } catch {
+    return '';
+  }
 }
 
 function getFirstChar(name: string): string {
@@ -42,6 +48,7 @@ export default function SiteItem({ link }: SiteItemProps) {
   };
 
   const faviconSrc = getFaviconSrc(link);
+  const hasFavicon = !!faviconSrc;
 
   const handleClick = () => {
     window.open(link.url, '_blank');
@@ -79,19 +86,21 @@ export default function SiteItem({ link }: SiteItemProps) {
       <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
         style={{ background: 'var(--glass-bg)' }}
       >
-        {faviconSrc ? (
+        {hasFavicon ? (
           <img
             src={faviconSrc}
             alt={link.name}
             className="w-8 h-8 object-contain"
             onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+              const img = e.target as HTMLImageElement;
+              img.style.display = 'none';
+              const fallback = img.nextElementSibling;
+              if (fallback) fallback.classList.remove('hidden');
             }}
           />
         ) : null}
         <span
-          className={`text-lg font-medium ${faviconSrc ? 'hidden' : ''}`}
+          className={`text-lg font-medium ${hasFavicon ? 'hidden' : ''}`}
           style={{ color: 'var(--accent)' }}
         >
           {getFirstChar(link.name)}
